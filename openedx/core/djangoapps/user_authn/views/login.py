@@ -430,6 +430,7 @@ def login_user(request):
         _check_excessive_login_attempts(user)
 
         possibly_authenticated_user = user
+        redirect_to_logistration = should_redirect_to_logistration_mircrofrontend()
 
         if not is_user_third_party_authenticated:
             possibly_authenticated_user = _authenticate_first_party(request, user, third_party_auth_requested)
@@ -446,8 +447,9 @@ def login_user(request):
         if is_user_third_party_authenticated:
             running_pipeline = pipeline.get(request)
             redirect_url = pipeline.get_complete_url(backend_name=running_pipeline['backend'])
-        elif should_redirect_to_logistration_mircrofrontend():
-            redirect_url = get_next_url_for_login_page(request)
+
+        elif redirect_to_logistration:
+            redirect_url = get_next_url_for_login_page(request, redirect_to_logistration)
 
         response = JsonResponse({
             'success': True,

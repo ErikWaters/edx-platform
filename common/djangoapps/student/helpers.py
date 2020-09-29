@@ -226,7 +226,7 @@ def check_verify_status_by_course(user, course_enrollments):
 POST_AUTH_PARAMS = ('course_id', 'enrollment_action', 'course_mode', 'email_opt_in', 'purchase_workflow')
 
 
-def get_next_url_for_login_page(request):
+def get_next_url_for_login_page(request, redirect_to_logistration=False):
     """
     Determine the URL to redirect to following login/registration/third_party_auth
 
@@ -268,14 +268,22 @@ def get_next_url_for_login_page(request):
                 # Tries reversing the LMS dashboard if the url doesn't exist
                 redirect_to = reverse('dashboard')
 
+            if redirect_to_logistration:
+                redirect_to = settings.LMS_ROOT_URL + reverse('dashboard')
+
         elif settings.ROOT_URLCONF == 'cms.urls':
             redirect_to = reverse('home')
+
+            if redirect_to_logistration:
+                redirect_to = settings.CMS_BASE + reverse('home')
 
     if any(param in request_params for param in POST_AUTH_PARAMS):
         # Before we redirect to next/dashboard, we need to handle auto-enrollment:
         params = [(param, request_params[param]) for param in POST_AUTH_PARAMS if param in request_params]
         params.append(('next', redirect_to))  # After auto-enrollment, user will be sent to payment page or to this URL
         redirect_to = '{}?{}'.format(reverse('finish_auth'), urllib.parse.urlencode(params))
+        if redirect_to_logistration:
+            redirect_to = '{}{}'.format(settings.LMS_ROOT_URL, redirect_to)
         # Note: if we are resuming a third party auth pipeline, then the next URL will already
         # be saved in the session as part of the pipeline state. That URL will take priority
         # over this one.

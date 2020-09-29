@@ -8,6 +8,7 @@ import datetime
 import json
 import unicodedata
 
+from urllib import parse
 import ddt
 import six
 from django.conf import settings
@@ -18,7 +19,6 @@ from django.http import HttpResponse
 from django.test.client import Client
 from django.test.utils import override_settings
 from django.urls import NoReverseMatch, reverse
-from freezegun import freeze_time
 from mock import patch
 from six.moves import range
 
@@ -90,7 +90,7 @@ class LoginTest(SiteMixin, CacheIsolationTestCase):
         {
             'next_url': None,
             'course_id': None,
-            'expected_redirect': '/dashboard',
+            'expected_redirect': settings.LMS_ROOT_URL + '/dashboard',
         },
         # A relative path is an acceptable redirect.
         {
@@ -108,7 +108,7 @@ class LoginTest(SiteMixin, CacheIsolationTestCase):
         {
             'next_url': 'https://evil.sketchysite',
             'course_id': None,
-            'expected_redirect': '/dashboard',
+            'expected_redirect': settings.LMS_ROOT_URL + '/dashboard',
         },
         # An absolute URL to a whitelisted domain is acceptable.
         {
@@ -121,7 +121,8 @@ class LoginTest(SiteMixin, CacheIsolationTestCase):
             'next_url': None,
             'course_id': 'coursekey',
             'expected_redirect': (
-                '/account/finish_auth?course_id=coursekey&next=%2Fdashboard'
+                '{root_url}/account/finish_auth?course_id=coursekey&next={encoded_root_url}%2Fdashboard'.
+                format(root_url=settings.LMS_ROOT_URL, encoded_root_url=parse.quote_plus(settings.LMS_ROOT_URL))
             ),
         },
         # If valid course_id AND next_url are provided, redirect to finish_auth with
@@ -130,7 +131,7 @@ class LoginTest(SiteMixin, CacheIsolationTestCase):
             'next_url': 'freshpage',
             'course_id': 'coursekey',
             'expected_redirect': (
-                '/account/finish_auth?course_id=coursekey&next=freshpage'
+                settings.LMS_ROOT_URL + '/account/finish_auth?course_id=coursekey&next=freshpage'
             )
         },
         # If course_id is provided with invalid next_url, redirect to finish_auth with
@@ -139,7 +140,8 @@ class LoginTest(SiteMixin, CacheIsolationTestCase):
             'next_url': 'http://scam.scam',
             'course_id': 'coursekey',
             'expected_redirect': (
-                '/account/finish_auth?course_id=coursekey&next=%2Fdashboard'
+                '{root_url}/account/finish_auth?course_id=coursekey&next={encoded_root_url}%2Fdashboard'.
+                format(root_url=settings.LMS_ROOT_URL, encoded_root_url=parse.quote_plus(settings.LMS_ROOT_URL))
             ),
         },
     )
