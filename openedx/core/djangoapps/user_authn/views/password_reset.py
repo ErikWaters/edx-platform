@@ -651,6 +651,9 @@ def password_reset_token_validate(request):
             return JsonResponse({'is_valid': is_valid})
 
         user = User.objects.get(id=uid_int)
+        if UserRetirementRequest.has_user_requested_retirement(user):
+            return JsonResponse({'is_valid': is_valid})
+
         is_valid = default_token_generator.check_token(user, token[1])
         if is_valid and not user.is_active:
             user.is_active = True
@@ -659,3 +662,37 @@ def password_reset_token_validate(request):
         AUDIT_LOG.exception("Invalid password reset confirm token")
 
     return JsonResponse({'is_valid': is_valid})
+
+
+@require_POST
+@ensure_csrf_cookie
+def password_reset_logistration(request, *args, **kwargs):
+    """Reset learner password using passed token and new credentials"""
+
+    reset_status = False
+    uidb36 = kwargs.get('uidb36')
+    token = kwargs.get('token')
+
+    uid_int = base36_to_int(uidb36)
+    user = User.objects.get(id=uid_int)
+
+    request.POST = request.POST.copy()
+    request.POST['new_password1'] = normalize_password(request.POST['new_password1'])
+    request.POST['new_password2'] = normalize_password(request.POST['new_password2'])
+
+    password = request.POST['new_password1']
+    try:
+        validate_password(password, user=user)
+    except ValidationError:
+        AUDIT_LOG.exception("Password validation failed")
+        return JsonResponse({'reset_status': reset_status})
+
+    form = SetPasswordForm(user, request.POST)
+    try:
+        if default_token_generator.check_token(user, token) and form.is_valid():
+            form.save()
+            reset_status = True
+            return JsonResponse({'reset_status': reset_status})
+    except Exception:
+        AUDIT_LOG.exception("Setting new password failed")
+    return JsonResponse({'reset_status': reset_status})
